@@ -1,0 +1,7 @@
+name: Blacklist
+main: net.veilmc.blacklist.Core
+version: 2.0-VEILMC
+commands:
+  blacklist:
+  unblacklist:
+  checkblacklist:
