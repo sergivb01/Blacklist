@@ -1,7 +1,5 @@
 package net.veilmc.blacklist;
-import java.util.logging.Level;
-
-
+import net.veilmc.blacklist.Utils.MySQL;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
@@ -10,21 +8,21 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.event.player.PlayerLoginEvent;
-import org.bukkit.event.player.PlayerLoginEvent.Result;
+import org.bukkit.plugin.java.JavaPlugin;
 
-import net.veilmc.blacklist.Utils.MySQL;
+import java.util.logging.Level;
 
 public class Core extends JavaPlugin implements Listener {
-
+    private static Core core;
     private MySQL mysql;
 
     public void onEnable() {
         //Config
+        core = this;
         saveDefaultConfig();
         //MySQL Stuff
-        if(getConfig().getBoolean("MySQL.Enabled") == true) {
+        if(getConfig().getBoolean("MySQL.Enabled")) {
             mysql = new MySQL(getConfig().getString("MySQL.IP"), getConfig().getString("MySQL.Username"), getConfig().getString("MySQL.Password"), getConfig().getString("MySQL.Name"));
             mysql.createUsers();
         } else {
@@ -32,22 +30,20 @@ public class Core extends JavaPlugin implements Listener {
         }
 
         //Check
-        Bukkit.getScheduler().scheduleSyncRepeatingTask(this, new Runnable() {
-            public void run() {
-                for(Player online : Bukkit.getOnlinePlayers()) {
-                    if(mysql.isPlayerBanned(online.getName())) {
-                        String reason = mysql.getBannedReason(online.getName());
-                        String staff = mysql.getStaff(online.getName());
-                        String kickreason = "&7\n&cYou have been blacklisted from the VeilMC Network\n&7Connect to ts.veilmc.net to appeal this blacklist.\n&7".replaceAll("\\n", "\n");
-                        if (reason != null) {
-                            online.kickPlayer(ChatColor.translateAlternateColorCodes('&', kickreason.replaceAll("%reason%", reason).replaceAll("%staff%", staff)));
-                        } else {
-                            online.kickPlayer(ChatColor.translateAlternateColorCodes('&', kickreason.replaceAll("%reaso%", "No Reason Specified").replaceAll("%staff%", staff)));
-                        }
+        new Thread(()-> Bukkit.getScheduler().scheduleAsyncRepeatingTask(this, ()->{
+            for(Player online : Bukkit.getOnlinePlayers()) {
+                if(mysql.isPlayerBanned(online.getName())) {
+                    String reason = mysql.getBannedReason(online.getName());
+                    String staff = mysql.getStaff(online.getName());
+                    String kickreason = "&7\n&cYou have been blacklisted from the VeilMC Network\n&7Connect to ts.veilmc.net to appeal this blacklist.\n&7".replaceAll("\\n", "\n");
+                    if (reason != null) {
+                        online.kickPlayer(ChatColor.translateAlternateColorCodes('&', kickreason.replaceAll("%reason%", reason).replaceAll("%staff%", staff)));
+                    } else {
+                        online.kickPlayer(ChatColor.translateAlternateColorCodes('&', kickreason.replaceAll("%reaso%", "No Reason Specified").replaceAll("%staff%", staff)));
                     }
                 }
             }
-        }, 50L, 50L);
+        }, 20L, 3 * 20L)).start();
 
         //Listeners
         Bukkit.getPluginManager().registerEvents(this, this);
@@ -58,16 +54,18 @@ public class Core extends JavaPlugin implements Listener {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onPlayerLogin(PlayerLoginEvent e) {
-        if(mysql.isPlayerBanned(e.getPlayer().getName()) == true) {
-            String reason = mysql.getBannedReason(e.getPlayer().getName());
-            String staff = mysql.getStaff(e.getPlayer().getName());
-            String kickreason = "&7\n&cYou have been blacklisted from the VeilMC Network\n&7Connect to ts.veilmc.net to appeal this blacklist.\n&7".replaceAll("\\n", "\n");
-            if (reason != null) {
-                e.disallow(Result.KICK_BANNED, ChatColor.translateAlternateColorCodes('&', kickreason.replaceAll("%reason%", reason).replaceAll("%staff%", staff)));
-            } else {
-                e.disallow(Result.KICK_BANNED, ChatColor.translateAlternateColorCodes('&', kickreason.replaceAll("%reaso%", "No Reason Specified").replaceAll("%staff%", staff)));
+        Bukkit.getScheduler().runTaskAsynchronously(core, ()->{
+            if(mysql.isPlayerBanned(e.getPlayer().getName())) {
+                String reason = mysql.getBannedReason(e.getPlayer().getName());
+                String staff = mysql.getStaff(e.getPlayer().getName());
+                String kickreason = "&7\n&cYou have been blacklisted from the VeilMC Network\n&7Connect to ts.veilmc.net to appeal this blacklist.\n&7".replaceAll("\\n", "\n");
+                if (reason != null) {
+                    e.getPlayer().kickPlayer(ChatColor.translateAlternateColorCodes('&', kickreason.replaceAll("%reason%", reason).replaceAll("%staff%", staff)));
+                } else {
+                    e.getPlayer().kickPlayer(ChatColor.translateAlternateColorCodes('&', kickreason.replaceAll("%reaso%", "No Reason Specified").replaceAll("%staff%", staff)));
+                }
             }
-        }
+        });
     }
 
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
@@ -92,33 +90,31 @@ public class Core extends JavaPlugin implements Listener {
                 }
 
                 String staff = sender.getName();
-                String kickreason = "&7\n&cYou have been blacklisted from the VeilMC Network\n&7Connect to ts.veilmc.net to appeal this blacklist.\n&7".replaceAll("\\n", git init"\n");
+                String kickreason = "&7\n&cYou have been blacklisted from the VeilMC Network\n&7Connect to ts.veilmc.net to appeal this blacklist.\n&7".replaceAll("\\n","\n");
                 sender.sendMessage(ChatColor.GREEN + "Grabbing profile and IP...");
-                Bukkit.getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
-                    public void run() {
-                        if(sender instanceof Player) {
-                            Player staff1 = (Player) sender;
-                            sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&c" + args[0] + " &ahas been successfully blacklisted"));
-                            if(!reason.contains("-s")) {
-                                Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&', "&c&l" + args[0] + " &cwas permanently blacklisted by &l" + staff + "&c!"));
-                            } else {
-                                reason.replaceAll("-s", "");
-                                Bukkit.broadcast(ChatColor.translateAlternateColorCodes('&', "&c&l" + args[0] + " &cwas permanently blacklisted by &l" + staff + "&c!"), "rank.staff");
-                            }
-                            mysql.banPlayer(args[0], reason, staff1.getName());
+                Bukkit.getScheduler().scheduleSyncDelayedTask(this, () -> {
+                    if(sender instanceof Player) {
+                        Player staff1 = (Player) sender;
+                        sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&c" + args[0] + " &ahas been successfully blacklisted"));
+                        if(!reason.contains("-s")) {
+                            Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&', "&c&l" + args[0] + " &cwas permanently blacklisted by &l" + staff + "&c!"));
                         } else {
-                            sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&c" + args[0] + " &ahas been successfully blacklisted!"));
-                            if(!reason.contains("-s")) {
-                                Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&', "&c&l" + args[0] + " &cwas permanently blacklisted by &lConsole&c!"));
-                            } else {
-                                reason.replaceAll("-s", "");
-                                Bukkit.broadcast(ChatColor.translateAlternateColorCodes('&', "&c&l" + args[0] + " &cwas permanently blacklisted by &lConsole&c!"), "rank.staff");
-                            }
-                            mysql.banPlayer(args[0], reason, "Console");
+                            reason.replaceAll("-s", "");
+                            Bukkit.broadcast(ChatColor.translateAlternateColorCodes('&', "&c&l" + args[0] + " &cwas permanently blacklisted by &l" + staff + "&c!"), "rank.staff");
                         }
-                        if(player != null) {
-                            player.kickPlayer(ChatColor.translateAlternateColorCodes('&', kickreason.replaceAll("\\n", "\n")));
+                        mysql.banPlayer(args[0], reason, staff1.getName());
+                    } else {
+                        sender.sendMessage(ChatColor.translateAlternateColorCodes('&', "&c" + args[0] + " &ahas been successfully blacklisted!"));
+                        if(!reason.contains("-s")) {
+                            Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&', "&c&l" + args[0] + " &cwas permanently blacklisted by &lConsole&c!"));
+                        } else {
+                            reason.replaceAll("-s", "");
+                            Bukkit.broadcast(ChatColor.translateAlternateColorCodes('&', "&c&l" + args[0] + " &cwas permanently blacklisted by &lConsole&c!"), "rank.staff");
                         }
+                        mysql.banPlayer(args[0], reason, "Console");
+                    }
+                    if(player != null) {
+                        player.kickPlayer(ChatColor.translateAlternateColorCodes('&', kickreason.replaceAll("\\n", "\n")));
                     }
                 }, 15L);
             } else {
@@ -131,8 +127,6 @@ public class Core extends JavaPlugin implements Listener {
                     sender.sendMessage(ChatColor.RED + "Usage: /unblacklist <player>");
                     return true;
                 }
-
-                Player player = Bukkit.getPlayer(args[0]);
 
                 if(!mysql.isPlayerBanned(args[0])) {
                     sender.sendMessage(ChatColor.RED + "Error: That player is not blacklisted!");
