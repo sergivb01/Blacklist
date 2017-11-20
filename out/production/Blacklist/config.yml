@@ -1,8 +1,0 @@
-MySQL:
-  Enabled: false
-  IP: 'localhost'
-  Name: 'blacklist'
-  Username: 'root'
-  Password: 'password'
-Strings:
-  Blacklisted_Reason: "&cYou are blacklisted from the &lVeilMC Network \\n&f\\n&7Appeal at veilmc.net"
